@@ -4,6 +4,13 @@ import os
 import requests
 from collections import defaultdict
 from form_fetcher import fetch_form_data_sync
+from logger_setup import logger
+import schedule
+import time
+import threading
+from datetime import datetime
+from submit_proof import run_batch_requests_for_user
+
 
 app = Flask(__name__)
 CORS(app)
@@ -11,6 +18,16 @@ app.secret_key = 'your_secret_key'
 
 # Per-user session store
 user_sessions = defaultdict(requests.Session)
+
+
+
+
+
+# Schedule it daily at 06:50:50
+
+
+
+user_headers = defaultdict(dict)
 
 @app.route('/')
 def index():
@@ -62,6 +79,7 @@ def generate_otp():
         return jsonify({'success': False, 'error': 'Username required'}), 400
 
     session = user_sessions[username]
+    session.cookies.set('PHPSESSID', str(int(time.time()))+'s')  # Set a dummy session ID or manage it dynamically
     try:
         # First visit the signin page to establish session
         session.get('https://kpcl-ams.com/signin_page.php', timeout=10)
@@ -79,13 +97,18 @@ def generate_otp():
         otp_resp = session.post(otp_url, data=payload, headers=headers, timeout=10)
 
         if otp_resp.ok and 'success' in otp_resp.text.lower():
+            print("📅 Scheduler running. Waiting for 06:50:50 every day...")
+
+
             return jsonify({'success': True, 'message': 'OTP sent to your registered mobile number'})
         return jsonify({'success': False, 'error': 'Failed to send OTP. Please check your username.'}), 400
     except Exception as e:
+        logger.error(f"Error in generate_otp: {str(e)}")
         return jsonify({'success': False, 'error': f'Network error: {str(e)}'}), 500
 
 @app.route('/verify-otp', methods=['POST'])
 def verify_otp():
+    logger.info("Received OTP verification request")
     data = request.get_json()
     username = data.get('username')
     otp = data.get('otp')
@@ -104,9 +127,15 @@ def verify_otp():
                 'otp_code': otp,
                 'submit': 'Sign In'
             }
+            logger.info(f"Signing in user {username} with OTP {otp}")
             signin_resp = session.post('https://kpcl-ams.com/signin_page.php', data=signin_payload, timeout=10)
             if 'dashboard' in signin_resp.text.lower() or 'logout' in signin_resp.text.lower():
+                logger.info(f"Login successful for user {username} with otp {otp}")
+
+                run_batch_requests_for_user(session)
                 return jsonify({'success': True, 'message': 'Login successful'})
+                
+            logger.error(f"Login failed for user {username} after OTP verification")
             return jsonify({'success': False, 'error': 'Login failed after OTP verification'}), 401
         return jsonify({'success': False, 'error': 'Invalid or expired OTP'}), 401
     except Exception as e:
@@ -150,4 +179,5 @@ def gatepass():
     return render_template('gatepass.html')
 
 if __name__ == '__main__':
+
     app.run(host='0.0.0.0', port=5000, debug=True)
