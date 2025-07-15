@@ -1,5 +1,5 @@
 import threading
-import schedule
+# import schedule
 import time
 from collections import defaultdict
 import requests
@@ -9,17 +9,30 @@ from values import url_proof_upload, payload_proof_upload
 from logger_setup import logger
 
 
-schedule_time = "18:38:00"  # Time to run the task daily
+# schedule_time = "18:38:00"  # Time to run the task daily
 interval_seconds = 3  # Interval between requests in seconds
-limit_requests = 30  # Limit the number of requests
+limit_requests = 10 # Limit the number of requests
 
-def send_request(n, session):
-    logger.info(f"📤 Request #{n+1} for {session} at {datetime.now()}")
+def send_request(session):
+    import ipdb; ipdb.set_trace()
+    """Send a request to the proof upload URL with the given session."""
+    # logger.info(f"📤 Request for {session} at {datetime.now()}")
+    logger.info(f"📤 Request for {session} at {datetime.now()}")
     try:
         response = session.post(url_proof_upload, data=payload_proof_upload)
         logger.info(f"✅ {session} response: {response.status_code}, response text: {response.text}")
     except Exception as e:
-        logger.error(f"❌ {session} request failed: {e}")
+        logger.info(f"❌ {session} request failed: {e}")
+
+# def send_request(n, session):
+    
+#     logger.info(f"📤 Request #{n+1} for {session} at {datetime.now()}")
+#     try:
+#         response = session.post(url_proof_upload, data=payload_proof_upload)
+#         logger.info(f"✅ {session} response: {response.status_code}, response text: {response.text}")
+#     except Exception as e:
+#         logger.info(f"❌ {session} request failed: {e}")
+
 
 def run_batch_requests_for_user(session):
     for i in range(limit_requests):

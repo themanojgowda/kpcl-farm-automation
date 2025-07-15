@@ -5,3 +5,7 @@ requests
 apscheduler
 httpx
 beautifulsoup4
+schedule
+redis
+rq
+rq-scheduler

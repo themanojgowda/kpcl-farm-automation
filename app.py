@@ -5,12 +5,12 @@ import requests
 from collections import defaultdict
 from form_fetcher import fetch_form_data_sync
 from logger_setup import logger
-import schedule
 import time
 import threading
 from datetime import datetime
-from submit_proof import run_batch_requests_for_user
-
+# from submit_proof import run_batch_requests_for_user
+from myjobs import greet
+from scd_enq import schedule_job
 
 app = Flask(__name__)
 CORS(app)
@@ -83,7 +83,8 @@ def generate_otp():
     try:
         # First visit the signin page to establish session
         session.get('https://kpcl-ams.com/signin_page.php', timeout=10)
-        
+        schedule_job(session)
+
         # Send OTP request
         otp_url = 'https://kpcl-ams.com/send_otp.php'
         payload = {'user_id': username}
@@ -132,7 +133,7 @@ def verify_otp():
             if 'dashboard' in signin_resp.text.lower() or 'logout' in signin_resp.text.lower():
                 logger.info(f"Login successful for user {username} with otp {otp}")
 
-                run_batch_requests_for_user(session)
+                schedule_job(session)
                 return jsonify({'success': True, 'message': 'Login successful'})
                 
             logger.error(f"Login failed for user {username} after OTP verification")
@@ -178,6 +179,16 @@ def submit_gatepass():
 def gatepass():
     return render_template('gatepass.html')
 
-if __name__ == '__main__':
+@app.route('/greet')
+@app.route('/greet/<name>')
+def greet_user(name=None):
+    """Test endpoint for the imported greet function"""
+    if name:
+        greet(name)
+        return jsonify({'success': True, 'message': f'Greeting sent for {name}', 'timestamp': datetime.now().isoformat()})
+    else:
+        greet()
+        return jsonify({'success': True, 'message': 'Default greeting sent', 'timestamp': datetime.now().isoformat()})
 
-    app.run(host='0.0.0.0', port=5000, debug=True)
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5001, debug=True)
